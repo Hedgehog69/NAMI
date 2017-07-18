@@ -31,8 +31,10 @@ namespace WindowsFormsApp1
                 try
                 {                    
                     FileStream stream = new FileStream(openFileDialog1.FileName, FileMode.Open);
-                    file = new File_treatment(openFileDialog1, comboBox1, comboBox2, numericUpDown1);
-                    file.vWrite_MIF_File(file.vRead_File(stream, out file.file), file.file); 
+                    file = new File_treatment(openFileDialog1.FileName, comboBox1.Text, comboBox2.Text, numericUpDown1.Value);
+                    file.vWrite_MIF_File(file.vRead_File(ref stream, out file.file), file.file);
+                    
+                    MessageBox.Show("Готово!");
                 }
                 catch
                 {

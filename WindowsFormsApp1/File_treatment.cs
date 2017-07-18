@@ -18,36 +18,33 @@ namespace WindowsFormsApp1
             public ushort words_in_file;
             public string almost_filename;
         };
-        public File_treatment(OpenFileDialog openFileDialog, ComboBox comboBox01, ComboBox comboBox02, NumericUpDown numericUpDown01)
+        public File_treatment(string filename, string files_amount, string width, decimal words)
         {
-            openFileDialog1 = openFileDialog;
-            comboBox1 = comboBox01;
-            comboBox2 = comboBox02;
-            numericUpDown1 = numericUpDown01;
+            sfile_name = filename;
+            sfiles = files_amount;
+            swidth = width;
+            uwords = words;
         }
 
-
-
-
-        OpenFileDialog openFileDialog1;
-        ComboBox comboBox1;
-        ComboBox comboBox2;
-        NumericUpDown numericUpDown1;
+        string sfile_name = "";
+        string sfiles = "";
+        string swidth = "";
+        decimal uwords = 0;
         public byte[] file;
 
 
 
         private void vRefresh_File_Info(ref file_info finf)
         {
-            finf.almost_filename = openFileDialog1.FileName;
-            finf.files = Convert.ToByte(comboBox1.Text);
-            finf.data_width = Convert.ToByte(comboBox2.Text);
-            finf.words_in_file = Convert.ToUInt16(numericUpDown1.Value);
+            finf.almost_filename = sfile_name;
+            finf.files = Convert.ToByte(sfiles);
+            finf.data_width = Convert.ToByte(swidth);
+            finf.words_in_file = Convert.ToUInt16(uwords);
 
             int index = finf.almost_filename.IndexOf('.');
             finf.almost_filename = finf.almost_filename.Substring(0, index);
         }
-        public file_info vRead_File(FileStream stream, out byte[] file)
+        public file_info vRead_File(ref FileStream stream, out byte[] file)
         {
             file_info finf = new file_info();
             BinaryReader br = new BinaryReader(stream);
@@ -57,40 +54,181 @@ namespace WindowsFormsApp1
             for (int i = 0; i < file.Length; i++)
                 file[i] = br.ReadByte();
 
+            br.Close();
+            stream.Close();
             return finf;
         }
         private void vHeader_Creater(file_info finf, ref string end_file)
         {
-            end_file += ("Width = " + Convert.ToString(finf.data_width) + "\\r\n");
-            end_file += ("Depth = " + Convert.ToString(finf.words_in_file) + "\\r\n" + "\\r\n");
-            end_file += "Address_radix = HEX;\\r\n";
-            end_file += "DATA_radix = HEX;\\r\n\\r\n";
-            end_file += "Content_begin:";
-        }
-        private void vContent_Formatter(file_info finf, ref string content, ref string error_message)
+            end_file += ("WIDTH = " + Convert.ToString(finf.data_width) + "\r\n");
+            end_file += ("DEPTH = " + Convert.ToString(finf.words_in_file) + "\r\n" + "\r\n");
+            end_file += "ADDRESS_RADIX = HEX;\r\n";
+            end_file += "DATA_RADIX = HEX;\r\n \r\n";
+            end_file += "CONTENT_BEGIN\r\n";
+        }        
+        private void vName_Generator(file_info finf, out string[] filenames)
         {
+            filenames = new string[finf.files];
 
+            for (byte i = 0; i < filenames.Length; i++)
+            {
+                filenames[i] = finf.almost_filename;
+            }
+
+            for (byte i = 0; i < filenames.Length; i++)
+            {
+                filenames[i] += (i.ToString() + ".mif");
+            }
+        }
+
+        private void vContent_Formatter(file_info finf, ref string content, ref string error_message, int file_number)
+        {
+            UInt32[] ui32_content = new UInt32[finf.data_width * finf.words_in_file];
+
+            for (ushort i = 0; i < ui32_content.Length; i++)
+            {
+                ui32_content[i] = 0xFFFFFFFF;
+            }
+
+            uint counter = (uint)(file_number * finf.words_in_file * (finf.data_width / 8));
+
+            switch (finf.data_width)
+            {
+                case (16):
+                    {
+                        try
+                        {
+                            for (ushort i = 0; i < ui32_content.Length; i++)
+                            {
+                                ui32_content[i] = (UInt32)((file[counter] << 8) | (file[counter + 1]));
+                                counter += 2;
+                            }
+                        }
+                        catch (IndexOutOfRangeException)
+                        {
+                            error_message += "Размер исходного файла недостаточен для заполнения всех файлов";
+                        }
+                        break;
+                    }
+                case (8):
+                    {
+                        try
+                        {
+                            for (ushort i = 0; i < ui32_content.Length; i++)
+                            {
+                                ui32_content[i] = (UInt32)(file[counter]);
+                                counter++;
+                            }
+                        }
+                        catch (IndexOutOfRangeException)
+                        {
+                            error_message += "Размер исходного файла недостаточен для заполнения всех файлов";
+                        }
+                        break;
+                    }
+
+                case (32):
+                    {
+                        try
+                        {
+                            for (ushort i = 0; i < ui32_content.Length; i++)
+                            {
+                                ui32_content[i] = (UInt32)((file[counter] << 24) | (file[counter + 1] << 16) | (file[counter + 2] << 8) | (file[counter + 3]));
+                                counter += 4;
+                            }
+                        }
+                        catch (IndexOutOfRangeException)
+                        {
+                            error_message += "Размер исходного файла недостаточен для заполнения всех файлов";
+                        }
+                        finally
+                        {
+
+                        }
+                        break;
+                    }
+                default:
+                    break;
+            }
+            switch (finf.data_width)
+            {
+                case (8):
+                    {
+                        for (int i = 0; i < finf.words_in_file; i++)
+                        {
+                            content += " " + String.Format("{0:X}", i) + ": " + String.Format("{0:X}", (byte)ui32_content[i]) + "\r\n";
+                        }
+                        break;
+                    }
+                case (16):
+                    {
+                        for (int i = 0; i < finf.words_in_file; i++)
+                        {
+                            content += " " + String.Format("{0:X}", i) + ": " + String.Format("{0:X}", (ushort)ui32_content[i]) + "\r\n";
+                        }
+                        break;
+                    }
+                case (32):
+                    {
+                        for (int i = 0; i < finf.words_in_file; i++)
+                        {
+                            content += " " + String.Format("{0:X}", i) + ": " + String.Format("{0:X}", (UInt32)ui32_content[i]) + "\r\n";
+                        }
+                        break;
+                    }
+                default:
+                    break;
+        }
         }
         private void vEnd_Formatter(ref string end_file, string error_message)
         {
-            end_file += "Content_end";
-            end_file += "Сообщения:\\r\n";
+            end_file += "END;\r\n";
+            end_file += "Сообщения:\r\n";
             end_file += error_message;
         }
+
+        private void vFile_Writer(string filename, string file)
+        {
+            FileStream fls = new FileStream(filename, FileMode.Create);
+            StreamWriter str = new StreamWriter(fls);
+            str.Write(file);
+            str.Close();
+            fls.Close();
+        }
+
         public void vWrite_MIF_File(file_info finf, byte[] file)
         {
             string end_file = "";
             string error_message = "";
             string content = "";
-            NumberFormatInfo ni = new NumberFormatInfo();
+            string end_of_cur_file = "";
+            string almost_file;
+
             if ((finf.words_in_file * finf.data_width * finf.files) < file.Length)
             {
-                error_message = "Информация выведена не полностью";
+                error_message = "Информация выведена не полностью\\r\n";
             }
+            string[] filenames;
+            vName_Generator(finf, out filenames);
 
-            vHeader_Creater(finf, ref end_file);
-            vContent_Formatter(finf, ref content, ref error_message);
-            vEnd_Formatter(ref end_file, error_message);
+            for (int i = 0; i < finf.files; i++)
+            {
+                vHeader_Creater(finf, ref end_file);
+                vContent_Formatter(finf, ref content, ref error_message, i);
+                vEnd_Formatter(ref end_of_cur_file, error_message);
+                almost_file = end_file + content + end_of_cur_file;
+
+                if (almost_file != null)
+                {
+                    vFile_Writer(filenames[i], almost_file);
+                }
+
+                almost_file = "";
+                end_file = "";
+                error_message = "";
+                content = "";
+                end_of_cur_file = "";
+            }
         }
     }
 }
