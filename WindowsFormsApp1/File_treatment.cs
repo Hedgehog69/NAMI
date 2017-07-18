@@ -32,7 +32,8 @@ namespace WindowsFormsApp1
         decimal uwords = 0;
         public byte[] file;
 
-
+        const string Too_Much_Data = "Информация будет выведена не полностью, исходный файл слишком велик.\r\n";
+        const string No_Data_For_All_Files = "Размер исходного файла недостаточен для заполнения всех файлов";
 
         private void vRefresh_File_Info(ref file_info finf)
         {
@@ -44,6 +45,7 @@ namespace WindowsFormsApp1
             int index = finf.almost_filename.IndexOf('.');
             finf.almost_filename = finf.almost_filename.Substring(0, index);
         }
+
         public file_info vRead_File(ref FileStream stream, out byte[] file)
         {
             file_info finf = new file_info();
@@ -58,6 +60,7 @@ namespace WindowsFormsApp1
             stream.Close();
             return finf;
         }
+
         private void vHeader_Creater(file_info finf, ref string end_file)
         {
             end_file += ("WIDTH = " + Convert.ToString(finf.data_width) + "\r\n");
@@ -66,6 +69,7 @@ namespace WindowsFormsApp1
             end_file += "DATA_RADIX = HEX;\r\n \r\n";
             end_file += "CONTENT_BEGIN\r\n";
         }        
+
         private void vName_Generator(file_info finf, out string[] filenames)
         {
             filenames = new string[finf.files];
@@ -83,7 +87,7 @@ namespace WindowsFormsApp1
 
         private void vContent_Formatter(file_info finf, ref string content, ref string error_message, int file_number)
         {
-            UInt32[] ui32_content = new UInt32[finf.data_width * finf.words_in_file];
+            UInt32[] ui32_content = new UInt32[(finf.data_width/8) * finf.words_in_file];
 
             for (ushort i = 0; i < ui32_content.Length; i++)
             {
@@ -91,14 +95,13 @@ namespace WindowsFormsApp1
             }
 
             uint counter = (uint)(file_number * finf.words_in_file * (finf.data_width / 8));
-
             switch (finf.data_width)
             {
                 case (16):
                     {
                         try
                         {
-                            for (ushort i = 0; i < ui32_content.Length; i++)
+                            for (ushort i = 0; i < ui32_content.Length - 1; i++)
                             {
                                 ui32_content[i] = (UInt32)((file[counter] << 8) | (file[counter + 1]));
                                 counter += 2;
@@ -106,7 +109,7 @@ namespace WindowsFormsApp1
                         }
                         catch (IndexOutOfRangeException)
                         {
-                            error_message += "Размер исходного файла недостаточен для заполнения всех файлов";
+                            error_message += No_Data_For_All_Files;
                         }
                         break;
                     }
@@ -122,7 +125,7 @@ namespace WindowsFormsApp1
                         }
                         catch (IndexOutOfRangeException)
                         {
-                            error_message += "Размер исходного файла недостаточен для заполнения всех файлов";
+                            error_message += No_Data_For_All_Files;
                         }
                         break;
                     }
@@ -131,7 +134,7 @@ namespace WindowsFormsApp1
                     {
                         try
                         {
-                            for (ushort i = 0; i < ui32_content.Length; i++)
+                            for (ushort i = 0; i < ui32_content.Length-4; i++)
                             {
                                 ui32_content[i] = (UInt32)((file[counter] << 24) | (file[counter + 1] << 16) | (file[counter + 2] << 8) | (file[counter + 3]));
                                 counter += 4;
@@ -139,7 +142,7 @@ namespace WindowsFormsApp1
                         }
                         catch (IndexOutOfRangeException)
                         {
-                            error_message += "Размер исходного файла недостаточен для заполнения всех файлов";
+                            error_message += No_Data_For_All_Files;
                         }
                         finally
                         {
@@ -180,11 +183,10 @@ namespace WindowsFormsApp1
                     break;
         }
         }
+
         private void vEnd_Formatter(ref string end_file, string error_message)
         {
             end_file += "END;\r\n";
-            end_file += "Сообщения:\r\n";
-            end_file += error_message;
         }
 
         private void vFile_Writer(string filename, string file)
@@ -196,17 +198,18 @@ namespace WindowsFormsApp1
             fls.Close();
         }
 
-        public void vWrite_MIF_File(file_info finf, byte[] file)
+        public void vWrite_MIF_File(file_info finf, byte[] file, out string output_error_message)
         {
             string end_file = "";
             string error_message = "";
             string content = "";
             string end_of_cur_file = "";
-            string almost_file;
+            string almost_file = "";
+            output_error_message = "";
 
             if ((finf.words_in_file * finf.data_width * finf.files) < file.Length)
             {
-                error_message = "Информация выведена не полностью\\r\n";
+                error_message = Too_Much_Data;
             }
             string[] filenames;
             vName_Generator(finf, out filenames);
@@ -225,7 +228,11 @@ namespace WindowsFormsApp1
 
                 almost_file = "";
                 end_file = "";
-                error_message = "";
+                output_error_message += ("\r\n file "+ i.ToString()+") "+error_message + "\r\n");
+                if (error_message != Too_Much_Data)
+                {
+                    error_message = "";
+                }
                 content = "";
                 end_of_cur_file = "";
             }
