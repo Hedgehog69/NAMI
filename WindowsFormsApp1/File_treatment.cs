@@ -55,7 +55,7 @@ namespace WindowsFormsApp1
             file = new byte[stream.Length];
             for (int i = 0; i < file.Length; i++)
                 file[i] = br.ReadByte();
-
+            // file = br.ReadBytes((int)stream.Length);
             br.Close();
             stream.Close();
             return finf;
@@ -87,21 +87,22 @@ namespace WindowsFormsApp1
 
         private void vContent_Formatter(file_info finf, ref string content, ref string error_message, int file_number)
         {
-            UInt32[] ui32_content = new UInt32[(finf.data_width/8) * finf.words_in_file];
-
+            UInt32[] ui32_content = new UInt32[finf.words_in_file];
+         
             for (ushort i = 0; i < ui32_content.Length; i++)
             {
                 ui32_content[i] = 0xFFFFFFFF;
             }
 
             uint counter = (uint)(file_number * finf.words_in_file * (finf.data_width / 8));
+
             switch (finf.data_width)
             {
                 case (16):
                     {
                         try
                         {
-                            for (ushort i = 0; i < ui32_content.Length - 1; i++)
+                            for (ushort i = 0; i < ui32_content.Length; i++)
                             {
                                 ui32_content[i] = (UInt32)((file[counter] << 8) | (file[counter + 1]));
                                 counter += 2;
@@ -111,6 +112,13 @@ namespace WindowsFormsApp1
                         {
                             error_message += No_Data_For_All_Files;
                         }
+
+                        for (int i = 0; i < finf.words_in_file; i++)
+                        {
+                            content += " " + String.Format("{0:X}", i) + ": "
+                                + String.Format("{0:X4}", (ushort)ui32_content[i]) + "\r\n";
+                        }
+
                         break;
                     }
                 case (8):
@@ -127,6 +135,11 @@ namespace WindowsFormsApp1
                         {
                             error_message += No_Data_For_All_Files;
                         }
+
+                        for (int i = 0; i < finf.words_in_file; i++)
+                        {
+                            content += " " + String.Format("{0:X}", i) + ": " + String.Format("{0:X2}", (byte)ui32_content[i]) + "\r\n";
+                        }                       
                         break;
                     }
 
@@ -134,7 +147,7 @@ namespace WindowsFormsApp1
                     {
                         try
                         {
-                            for (ushort i = 0; i < ui32_content.Length-4; i++)
+                            for (ushort i = 0; i < ui32_content.Length; i++)
                             {
                                 ui32_content[i] = (UInt32)((file[counter] << 24) | (file[counter + 1] << 16) | (file[counter + 2] << 8) | (file[counter + 3]));
                                 counter += 4;
@@ -144,44 +157,18 @@ namespace WindowsFormsApp1
                         {
                             error_message += No_Data_For_All_Files;
                         }
-                        finally
-                        {
 
+                        for (int i = 0; i < finf.words_in_file; i++)
+                        {
+                            content += " " + String.Format("{0:X}", i) + ": " + String.Format("{0:X8}", (UInt32)ui32_content[i]) + "\r\n";
                         }
+
                         break;
                     }
                 default:
                     break;
             }
-            switch (finf.data_width)
-            {
-                case (8):
-                    {
-                        for (int i = 0; i < finf.words_in_file; i++)
-                        {
-                            content += " " + String.Format("{0:X}", i) + ": " + String.Format("{0:X}", (byte)ui32_content[i]) + "\r\n";
-                        }
-                        break;
-                    }
-                case (16):
-                    {
-                        for (int i = 0; i < finf.words_in_file; i++)
-                        {
-                            content += " " + String.Format("{0:X}", i) + ": " + String.Format("{0:X}", (ushort)ui32_content[i]) + "\r\n";
-                        }
-                        break;
-                    }
-                case (32):
-                    {
-                        for (int i = 0; i < finf.words_in_file; i++)
-                        {
-                            content += " " + String.Format("{0:X}", i) + ": " + String.Format("{0:X}", (UInt32)ui32_content[i]) + "\r\n";
-                        }
-                        break;
-                    }
-                default:
-                    break;
-        }
+            
         }
 
         private void vEnd_Formatter(ref string end_file, string error_message)

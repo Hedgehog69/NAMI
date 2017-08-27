@@ -24,13 +24,15 @@ namespace WindowsFormsApp1
         private void button1_Click(object sender, EventArgs e)
         {
             string error_log;
+           
             if(openFileDialog1.ShowDialog()!=DialogResult.Cancel)
             {
                 if (openFileDialog1.FileName == "")
                     return;
 
                 try
-                {                    
+                {
+                    richTextBox1.Text = "";
                     FileStream stream = new FileStream(openFileDialog1.FileName, FileMode.Open);
                     file = new File_treatment(openFileDialog1.FileName, comboBox1.Text, comboBox2.Text, numericUpDown1.Value);
                     file.vWrite_MIF_File(file.vRead_File(ref stream, out file.file), file.file,out error_log);
@@ -69,6 +71,10 @@ namespace WindowsFormsApp1
                 comboBox2.Enabled = false;
                 numericUpDown1.Enabled = false;
             }
+        }
+        private void button2_Click(object sender, EventArgs e)
+        {
+            richTextBox1.Text = "";
         }
     }
 }
